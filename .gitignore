@@ -28,3 +28,6 @@ Thumbs.db
 
 # Temp
 *.log
+
+# Strategy backtest outputs
+strategies/**/results/
