@@ -11,18 +11,24 @@ from .constants import TRADING_DAYS_PER_YEAR
 
 
 class EquityCurve(bt.Analyzer):
-    """逐日记录账户净值。"""
+    """逐日记录账户净值；fund mode 下同时记录基金净值（起点为 fundstartval）。"""
 
     def start(self):
         self.dates = []
         self.values = []
+        self.fund_values = []
 
     def next(self):
         self.dates.append(self.strategy.data.datetime.date(0))
         self.values.append(self.strategy.broker.getvalue())
+        self.fund_values.append(self.strategy.broker.fundvalue)
 
     def get_analysis(self):
-        return {"dates": self.dates, "values": self.values}
+        return {
+            "dates": self.dates,
+            "values": self.values,
+            "fund_values": self.fund_values,
+        }
 
 
 class TradeRecorder(bt.Analyzer):
@@ -131,9 +137,13 @@ def save_results(strategy_name: str, strategy: bt.Strategy, results_dir: str | P
     out_dir.mkdir(parents=True, exist_ok=True)
 
     equity = strategy.analyzers.equity.get_analysis()
-    pd.DataFrame({"date": equity["dates"], "equity": equity["values"]}).to_csv(
-        out_dir / f"{strategy_name}_equity.csv", index=False
-    )
+    pd.DataFrame(
+        {
+            "date": equity["dates"],
+            "equity": equity["values"],
+            "fund_value": equity["fund_values"],
+        }
+    ).to_csv(out_dir / f"{strategy_name}_equity.csv", index=False)
     pd.DataFrame(strategy.analyzers.trades.get_analysis()).to_csv(
         out_dir / f"{strategy_name}_trades.csv", index=False
     )

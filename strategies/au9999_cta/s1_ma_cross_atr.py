@@ -35,9 +35,8 @@ class MaCrossAtrStop(LongOnlyStrategyBase):
         if not self.position:
             if self.has_pending_order:
                 return
-            trend_ok = self.ma_fast[0] > self.ma_slow[0] and self.data.close[0] > self.ma_slow[0]
-            if trend_ok and self.cross_up[0] > 0:
-                self.buy_next_open(reason="趋势向上 + 金叉")
+            if self.cross_up[0] and self.data.close[0] > self.ma_slow[0] > 0:
+                self.buy_next_open(reason="金叉 + 收盘价 > MA60")
             return
 
         if self.stop_price is None:

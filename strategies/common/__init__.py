@@ -8,6 +8,8 @@ from .constants import (
     COMMISSION_RATE,
     DATA_DIR,
     FIXED_GRAMS,
+    FUND_MODE,
+    FUND_START_VALUE,
     INITIAL_CASH,
     MIN_TRADE_GRAMS,
     POSITION_MODE,
@@ -22,6 +24,7 @@ from .constants import (
 from .data_loader import load_au9999_daily
 from .engine import run_backtest
 from .indicators import BollingerBandwidth, RollingPercentile
+from .observers import PositionSize
 from .performance import EquityCurve, TradeRecorder, build_summary, save_results, save_summary
 
 __all__ = [
@@ -33,12 +36,15 @@ __all__ = [
     "DATA_DIR",
     "EquityCurve",
     "FIXED_GRAMS",
+    "FUND_MODE",
+    "FUND_START_VALUE",
     "INITIAL_CASH",
     "LongOnlyStrategyBase",
     "MIN_TRADE_GRAMS",
     "POSITION_MODE",
     "POSITION_PERCENT",
     "PROJECT_ROOT",
+    "PositionSize",
     "RISK_FREE_RATE",
     "RISK_PER_TRADE",
     "RollingPercentile",

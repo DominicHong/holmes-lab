@@ -19,13 +19,19 @@ INITIAL_CASH = 1_000_000.0
 COMMISSION_RATE = 0.0002  # 手续费率，按成交金额计
 SLIPPAGE_RATE = 0.0002    # 滑点率，按成交价计
 
+# ---------- 资金模式 ----------
+# fund mode 下 backtrader 以“基金净值”口径跟踪收益：
+# 净值起点为 FUND_START_VALUE，入金/出金自动折算成份额，不受资金申赎干扰。
+FUND_MODE = True
+FUND_START_VALUE = 100.0
+
 # ---------- 仓位规则 ----------
 # "fixed_grams"   : 每次固定买入 FIXED_GRAMS 克
 # "percent_equity": 每次按总资金 POSITION_PERCENT 折算克数
 # "risk_budget"   : 每次按 RISK_PER_TRADE 风险预算 / 每克止损距离 折算克数
 POSITION_MODE = "percent_equity"
 FIXED_GRAMS = 100.0
-POSITION_PERCENT = 0.20
+POSITION_PERCENT = 0.95
 RISK_PER_TRADE = 0.02
 MIN_TRADE_GRAMS = 1.0       # 最小交易克数（按此取整）
 SIZE_CASH_BUFFER = 0.02     # 按比例开仓时为次日跳空预留的现金缓冲
