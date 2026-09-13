@@ -3,6 +3,7 @@
 from pathlib import Path
 
 from .s1_ma_cross_atr import MaCrossAtrStop
+from .s1b_ma_cross_trailing import MaCrossTrailingStop
 from .s2_donchian_breakout import DonchianBreakout
 from .s3_bollinger_squeeze import BollingerSqueeze
 from .s4_keltner_breakout import KeltnerBreakout
@@ -17,6 +18,7 @@ BACKTEST_END = "2026-09-01"
 
 STRATEGIES = {
     "s1_ma_cross_atr": MaCrossAtrStop,
+    "s1b_ma_cross_trailing": MaCrossTrailingStop,
     "s2_donchian_breakout": DonchianBreakout,
     "s3_bollinger_squeeze": BollingerSqueeze,
     "s4_keltner_breakout": KeltnerBreakout,
@@ -30,6 +32,7 @@ __all__ = [
     "DonchianBreakout",
     "KeltnerBreakout",
     "MaCrossAtrStop",
+    "MaCrossTrailingStop",
     "RESULTS_DIR",
     "RsiMeanReversion",
     "STRATEGIES",
