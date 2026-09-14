@@ -21,7 +21,7 @@ from .constants import (
     SLIPPAGE_RATE,
     TRADING_DAYS_PER_YEAR,
 )
-from .data_loader import load_au9999_daily
+from .data_loader import load_daily_csv
 from .engine import run_backtest
 from .indicators import BollingerBandwidth, RollingPercentile
 from .observers import PositionSize
@@ -53,7 +53,7 @@ __all__ = [
     "TRADING_DAYS_PER_YEAR",
     "TradeRecorder",
     "build_summary",
-    "load_au9999_daily",
+    "load_daily_csv",
     "run_backtest",
     "save_results",
     "save_summary",

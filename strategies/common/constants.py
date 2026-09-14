@@ -16,7 +16,7 @@ AU9999_DAILY_CSV = DATA_DIR / "AU9999_Daily.csv"
 INITIAL_CASH = 1_000_000.0
 
 # ---------- 交易成本（单边） ----------
-COMMISSION_RATE = 0.0002  # 手续费率，按成交金额计
+COMMISSION_RATE = 0.004  # 手续费率，按成交金额计
 SLIPPAGE_RATE = 0.0002    # 滑点率，按成交价计
 
 # ---------- 资金模式 ----------
