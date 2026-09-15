@@ -2,6 +2,7 @@
 
 统一撮合与成本假设：
 - 市价单默认在信号次日开盘成交；
+- 启用 cheat_on_open：买入在次日开盘前按实际开盘价定量并成交；
 - 手续费、滑点取自 common/constants.py；
 - 默认启用 fund mode（基金净值口径，净值起点 100）；
 - 自动挂载净值、交易记录、回撤、Sharpe、SQN 等 analyzer；
@@ -35,7 +36,7 @@ def make_cerebro(
     fund_start_value: float = FUND_START_VALUE,
     plot: bool = False,
 ) -> bt.Cerebro:
-    cerebro = bt.Cerebro(stdstats=False)
+    cerebro = bt.Cerebro(stdstats=False, cheat_on_open=True)
     cerebro.addstrategy(strategy_cls, **(strategy_params or {}))
     cerebro.adddata(bt.feeds.PandasData(dataname=data))
     cerebro.broker.setcash(initial_cash)

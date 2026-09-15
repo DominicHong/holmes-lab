@@ -1,7 +1,7 @@
 """策略一B：双均线趋势跟踪 + 量能过滤 + ATR 量能自适应止损（VolFilteredMaCross）。
 
 策略逻辑见 docs/trade_strat/au9999_cta.md，在策略一A基础上增加三个量能模块：
-- 入场降档：量能健康（VOL_MA5 > VOL_MA20 或 OBV > OBV_SMA20）95% 仓位，否则 70%；
+- 入场降档：量能健康（VOL_MA5 > VOL_MA20 或 OBV > OBV_SMA20）100% 仓位，否则 70%；
 - 再入场节流：止损平仓后进入 5 个交易日冷却期，须放量反攻 / 缩量回踩企稳 / 第 5 日兜底才再入场；
 - 出场自适应：移动止损状态机 NORMAL 2.5×ATR、量价背离 1.8×ATR、天量 1.5×ATR
   （天量基准锁定天量日收盘价），出现"放量创新高"恢复 NORMAL。
@@ -23,7 +23,6 @@ from __future__ import annotations
 import backtrader as bt
 
 from ..common.base import LongOnlyStrategyBase
-from ..common.constants import MIN_TRADE_GRAMS, SIZE_CASH_BUFFER
 from ..common.indicators import OnBalanceVolume
 
 
@@ -48,7 +47,7 @@ class VolFilteredMaCross(LongOnlyStrategyBase):
         ("reentry_pullback_atr", 1.0),        # 再入场：收盘价距 SMA20 上限（ATR 倍数）
         ("reentry_shrink_ratio", 0.8),        # 再入场：缩量回踩量比上限
         ("cooldown_days", 5),                 # 止损冷却期（交易日）
-        ("healthy_percent", 0.95),            # 量能健康基准仓位
+        ("healthy_percent", 1.0),             # 量能健康基准仓位
         ("unhealthy_percent", 0.70),          # 量能不佳降档仓位
         ("use_volume_stop", True),            # 消融开关：出场自适应
         ("use_reentry_gate", True),           # 消融开关：再入场节流
@@ -75,14 +74,12 @@ class VolFilteredMaCross(LongOnlyStrategyBase):
         self.cooldown_days_left = 0
         self.exit_kind = ""
 
-    # ---------- 仓位：量能健康 95% / 不健康 70% ----------
+    # ---------- 仓位：量能健康 100% / 不健康 70% ----------
     def calc_size(self, price: float) -> float:
         if self.p.position_mode != "percent_equity":
             return super().calc_size(price)
         percent = self.p.position_percent if self.entry_percent is None else self.entry_percent
-        budget = self.broker.getvalue() * percent
-        grams = budget / (price * (1.0 + SIZE_CASH_BUFFER))
-        return float(int(grams / MIN_TRADE_GRAMS) * MIN_TRADE_GRAMS)
+        return self.size_for_cash(self.broker.getcash() * percent, price)
 
     # ---------- 量能信号 ----------
     def vol_ratio(self) -> float:

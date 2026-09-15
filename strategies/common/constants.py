@@ -27,14 +27,13 @@ FUND_START_VALUE = 100.0
 
 # ---------- 仓位规则 ----------
 # "fixed_grams"   : 每次固定买入 FIXED_GRAMS 克
-# "percent_equity": 每次按总资金 POSITION_PERCENT 折算克数
+# "percent_equity": 买入金额 = 可用现金 × POSITION_PERCENT，再按价格折算克数
 # "risk_budget"   : 每次按 RISK_PER_TRADE 风险预算 / 每克止损距离 折算克数
 POSITION_MODE = "percent_equity"
 FIXED_GRAMS = 100.0
-POSITION_PERCENT = 0.95
+POSITION_PERCENT = 1.0
 RISK_PER_TRADE = 0.02
 MIN_TRADE_GRAMS = 1.0       # 最小交易克数（按此取整）
-SIZE_CASH_BUFFER = 0.02     # 按比例开仓时为次日跳空预留的现金缓冲
 
 # ---------- 回测区间（None 表示使用数据文件全部区间） ----------
 BACKTEST_START = None

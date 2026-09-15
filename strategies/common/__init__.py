@@ -17,7 +17,6 @@ from .constants import (
     PROJECT_ROOT,
     RISK_FREE_RATE,
     RISK_PER_TRADE,
-    SIZE_CASH_BUFFER,
     SLIPPAGE_RATE,
     TRADING_DAYS_PER_YEAR,
 )
@@ -49,7 +48,6 @@ __all__ = [
     "RISK_FREE_RATE",
     "RISK_PER_TRADE",
     "RollingPercentile",
-    "SIZE_CASH_BUFFER",
     "SLIPPAGE_RATE",
     "TRADING_DAYS_PER_YEAR",
     "TradeRecorder",
