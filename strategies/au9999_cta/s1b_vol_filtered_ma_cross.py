@@ -1,6 +1,6 @@
-"""策略一C：双均线趋势跟踪 + 量能过滤 + ATR 量能自适应止损（VolFilteredMaCross）。
+"""策略一B：双均线趋势跟踪 + 量能过滤 + ATR 量能自适应止损（VolFilteredMaCross）。
 
-策略逻辑见 docs/trade_strat/gold_vol_ma_cross.md，在 s1b 基础上增加三个量能模块：
+策略逻辑见 docs/trade_strat/au9999_cta.md，在策略一A基础上增加三个量能模块：
 - 入场降档：量能健康（VOL_MA5 > VOL_MA20 或 OBV > OBV_SMA20）95% 仓位，否则 70%；
 - 再入场节流：止损平仓后进入 5 个交易日冷却期，须放量反攻 / 缩量回踩企稳 / 第 5 日兜底才再入场；
 - 出场自适应：移动止损状态机 NORMAL 2.5×ATR、量价背离 1.8×ATR、天量 1.5×ATR
@@ -12,6 +12,10 @@
 - use_position_downgrade=False → 入场恒用 healthy_percent 仓位。
 
 信号收盘确认，次日开盘成交；只做多，死叉出场不进入冷却期。
+
+回测（2018-01-01 ~ 2026-09-01，单边手续费 0.02% + 滑点 0.02%）：
+- AU9999    ：总收益 245.2%，最大回撤 16.4%，Sharpe 1.35，39 笔，胜率 56.4%；
+- 518880.SH ：总收益 101.1%，最大回撤 17.1%，Sharpe 0.83，66 笔，胜率 50.0%。
 """
 
 from __future__ import annotations

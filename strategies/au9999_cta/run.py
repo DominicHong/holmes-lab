@@ -2,7 +2,7 @@
 
 用法（在仓库根目录执行）：
     python -m strategies.au9999_cta.run
-    python -m strategies.au9999_cta.run --strategies s1_ma_cross_atr s5_rsi_mean_reversion
+    python -m strategies.au9999_cta.run --strategies s1a_ma_cross_trailing s5_rsi_mean_reversion
     python -m strategies.au9999_cta.run --start 2020-01-01 --end 2022-12-31
     python -m strategies.au9999_cta.run --csv data/518880.SH.csv
     python -m strategies.au9999_cta.run --plot --verbose

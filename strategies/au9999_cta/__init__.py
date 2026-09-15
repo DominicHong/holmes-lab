@@ -3,9 +3,8 @@
 from pathlib import Path
 
 from .buy_and_hold import BuyAndHold
-from .s1_ma_cross_atr import MaCrossAtrStop
-from .s1b_ma_cross_trailing import MaCrossTrailingStop
-from .s1c_vol_filtered_ma_cross import VolFilteredMaCross
+from .s1a_ma_cross_trailing import MaCrossTrailingStop
+from .s1b_vol_filtered_ma_cross import VolFilteredMaCross
 from .s2_donchian_breakout import DonchianBreakout
 from .s3_bollinger_squeeze import BollingerSqueeze
 from .s4_keltner_breakout import KeltnerBreakout
@@ -20,9 +19,8 @@ BACKTEST_END = "2026-09-01"
 
 STRATEGIES = {
     "buy_and_hold": BuyAndHold,
-    "s1_ma_cross_atr": MaCrossAtrStop,
-    "s1b_ma_cross_trailing": MaCrossTrailingStop,
-    "s1c_vol_filtered_ma_cross": VolFilteredMaCross,
+    "s1a_ma_cross_trailing": MaCrossTrailingStop,
+    "s1b_vol_filtered_ma_cross": VolFilteredMaCross,
     "s2_donchian_breakout": DonchianBreakout,
     "s3_bollinger_squeeze": BollingerSqueeze,
     "s4_keltner_breakout": KeltnerBreakout,
@@ -36,7 +34,6 @@ __all__ = [
     "BuyAndHold",
     "DonchianBreakout",
     "KeltnerBreakout",
-    "MaCrossAtrStop",
     "MaCrossTrailingStop",
     "RESULTS_DIR",
     "RsiMeanReversion",
