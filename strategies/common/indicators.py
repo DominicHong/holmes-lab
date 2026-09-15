@@ -2,8 +2,30 @@
 
 from __future__ import annotations
 
+import math
+
 import backtrader as bt
 import numpy as np
+
+
+class OnBalanceVolume(bt.Indicator):
+    """能量潮 OBV：收涨累加当日成交量，收跌累减，平盘不变。"""
+
+    lines = ("obv",)
+
+    def __init__(self):
+        self.addminperiod(2)
+
+    def next(self):
+        base = self.lines.obv[-1]
+        if math.isnan(base):
+            base = 0.0
+        if self.data.close[0] > self.data.close[-1]:
+            self.lines.obv[0] = base + self.data.volume[0]
+        elif self.data.close[0] < self.data.close[-1]:
+            self.lines.obv[0] = base - self.data.volume[0]
+        else:
+            self.lines.obv[0] = base
 
 
 class BollingerBandwidth(bt.Indicator):

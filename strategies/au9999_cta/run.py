@@ -52,7 +52,12 @@ def main() -> None:
     csv_path = AU9999_DAILY_CSV if args.csv is None else Path(args.csv)
     start = args.start or BACKTEST_START
     end = args.end or BACKTEST_END
-    results_dir = RESULTS_DIR if args.results_dir is None else Path(args.results_dir)
+    if args.results_dir is not None:
+        results_dir = Path(args.results_dir)
+    elif args.csv is None:
+        results_dir = RESULTS_DIR
+    else:
+        results_dir = RESULTS_DIR / csv_path.stem
 
     data = load_daily_csv(csv_path, start=start, end=end)
     print(f"数据文件: {csv_path}")

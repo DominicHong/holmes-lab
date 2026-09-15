@@ -23,7 +23,7 @@ from .constants import (
 )
 from .data_loader import load_daily_csv
 from .engine import run_backtest
-from .indicators import BollingerBandwidth, RollingPercentile
+from .indicators import BollingerBandwidth, OnBalanceVolume, RollingPercentile
 from .observers import PositionSize
 from .performance import EquityCurve, TradeRecorder, build_summary, save_results, save_summary
 
@@ -41,6 +41,7 @@ __all__ = [
     "INITIAL_CASH",
     "LongOnlyStrategyBase",
     "MIN_TRADE_GRAMS",
+    "OnBalanceVolume",
     "POSITION_MODE",
     "POSITION_PERCENT",
     "PROJECT_ROOT",

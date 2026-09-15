@@ -101,15 +101,8 @@ def build_summary(strategy: bt.Strategy, initial_cash: float, strategy_name: str
     trades = strategy.analyzers.trades.get_analysis()
     closed = _deep_get(trade_analysis, "total", "closed", default=0)
     won = _deep_get(trade_analysis, "won", "total", default=0)
-    lost = _deep_get(trade_analysis, "lost", "total", default=0)
-    won_pnl = _deep_get(trade_analysis, "won", "pnl", "total", default=0.0)
-    lost_pnl = _deep_get(trade_analysis, "lost", "pnl", "total", default=0.0)
 
     win_rate = won / closed if closed else 0.0
-    if lost_pnl:
-        profit_factor = won_pnl / abs(lost_pnl)
-    else:
-        profit_factor = float("inf") if won_pnl > 0 else 0.0
     net_pnl = _deep_get(trade_analysis, "pnl", "net", "total", default=0.0)
 
     return {
@@ -125,7 +118,6 @@ def build_summary(strategy: bt.Strategy, initial_cash: float, strategy_name: str
         "sqn": round(sqn, 3) if sqn is not None else None,
         "trades": closed,
         "win_rate": round(win_rate, 4),
-        "profit_factor": round(profit_factor, 3) if profit_factor != float("inf") else None,
         "avg_pnl_net": round(net_pnl / closed, 2) if closed else 0.0,
         "commission": round(sum(t["commission"] for t in trades), 2),
     }
