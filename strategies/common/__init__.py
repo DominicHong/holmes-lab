@@ -10,6 +10,7 @@ from .constants import (
     FIXED_GRAMS,
     FUND_MODE,
     FUND_START_VALUE,
+    GOLD_ETF_DAILY_CSV,
     INITIAL_CASH,
     MIN_TRADE_GRAMS,
     POSITION_MODE,
@@ -20,7 +21,6 @@ from .constants import (
     SLIPPAGE_RATE,
     TRADING_DAYS_PER_YEAR,
 )
-from .data_loader import load_daily_csv
 from .engine import run_backtest
 from .indicators import BollingerBandwidth, OnBalanceVolume, RollingPercentile
 from .observers import PositionSize
@@ -37,6 +37,7 @@ __all__ = [
     "FIXED_GRAMS",
     "FUND_MODE",
     "FUND_START_VALUE",
+    "GOLD_ETF_DAILY_CSV",
     "INITIAL_CASH",
     "LongOnlyStrategyBase",
     "MIN_TRADE_GRAMS",
@@ -56,4 +57,16 @@ __all__ = [
     "run_backtest",
     "save_results",
     "save_summary",
+    "update_daily",
 ]
+
+_LAZY_NAMES = {"load_daily_csv", "update_daily"}
+
+
+def __getattr__(name: str):
+    """延迟导入 data_loader，避免 python -m 执行该模块时被包 __init__ 提前加载（runpy 告警）。"""
+    if name in _LAZY_NAMES:
+        from . import data_loader
+
+        return getattr(data_loader, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")
