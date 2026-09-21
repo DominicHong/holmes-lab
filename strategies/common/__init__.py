@@ -11,6 +11,7 @@ from .constants import (
     FUND_MODE,
     FUND_START_VALUE,
     GOLD_ETF_DAILY_CSV,
+    GOLD_ETF_MINUTES_CSV,
     INITIAL_CASH,
     MIN_TRADE_GRAMS,
     POSITION_MODE,
@@ -22,6 +23,7 @@ from .constants import (
     TRADING_DAYS_PER_YEAR,
 )
 from .engine import run_backtest
+from .feeds import IntradaySnapshotData
 from .indicators import BollingerBandwidth, OnBalanceVolume, RollingPercentile
 from .observers import PositionSize
 from .performance import EquityCurve, TradeRecorder, build_summary, save_results, save_summary
@@ -38,7 +40,9 @@ __all__ = [
     "FUND_MODE",
     "FUND_START_VALUE",
     "GOLD_ETF_DAILY_CSV",
+    "GOLD_ETF_MINUTES_CSV",
     "INITIAL_CASH",
+    "IntradaySnapshotData",
     "LongOnlyStrategyBase",
     "MIN_TRADE_GRAMS",
     "OnBalanceVolume",
@@ -54,13 +58,15 @@ __all__ = [
     "TradeRecorder",
     "build_summary",
     "load_daily_csv",
+    "load_minute_snapshots",
+    "read_minute_quotes",
     "run_backtest",
     "save_results",
     "save_summary",
     "update_daily",
 ]
 
-_LAZY_NAMES = {"load_daily_csv", "update_daily"}
+_LAZY_NAMES = {"load_daily_csv", "load_minute_snapshots", "read_minute_quotes", "update_daily"}
 
 
 def __getattr__(name: str):

@@ -3,9 +3,11 @@
 from __future__ import annotations
 
 import math
+from typing import Sequence
 
 import backtrader as bt
 import numpy as np
+import pandas as pd
 
 
 class OnBalanceVolume(bt.Indicator):
@@ -63,3 +65,60 @@ class RollingPercentile(bt.Indicator):
     def next(self):
         window = self.data.get(size=self.p.period)
         self.lines.pct[0] = float(np.percentile(window, self.p.percentile))
+
+
+# ---------- pandas 向量化版本（供分钟快照等预处理数据使用） ----------
+
+def sma(values: Sequence[float], period: int) -> np.ndarray:
+    """简单移动平均，与 backtrader SMA 同口径：前 period-1 个值为 NaN。"""
+    return pd.Series(values, dtype=float).rolling(period).mean().to_numpy()
+
+
+def wilder_atr(high, low, close, period: int = 14) -> np.ndarray:
+    """Wilder ATR，与 backtrader ATR 同口径：
+
+    TR = max(high, prev_close) - min(low, prev_close)；
+    首个有效值在 index=period（种子 = mean(TR[1:period+1])），之后按 1/period 递推。
+    """
+    h, l, c = (np.asarray(x, dtype=float) for x in (high, low, close))
+    n = len(c)
+    tr = np.empty(n)
+    tr[0] = h[0] - l[0]
+    prev_close = c[:-1]
+    tr[1:] = np.maximum.reduce(
+        [h[1:] - l[1:], np.abs(h[1:] - prev_close), np.abs(l[1:] - prev_close)]
+    )
+    atr = np.full(n, np.nan)
+    if n > period:
+        atr[period] = tr[1 : period + 1].mean()
+        alpha = 1.0 / period
+        for i in range(period + 1, n):
+            atr[i] = atr[i - 1] + alpha * (tr[i] - atr[i - 1])
+    return atr
+
+
+def build_ma_cross_signals(
+    close: Sequence[float],
+    high: Sequence[float],
+    low: Sequence[float],
+    fast_period: int = 30,
+    slow_period: int = 90,
+    atr_period: int = 14,
+) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray]:
+    """双均线信号：返回 (trend_ok, cross_down, sma_fast, sma_slow, atr)。
+
+    trend_ok = SMA(fast) > SMA(slow) 且 close > SMA(slow)，指标未预热时为 False；
+    cross_down = 前一日 SMA(fast) > SMA(slow) 且当日 SMA(fast) <= SMA(slow)。
+    """
+    fast_ma = sma(close, fast_period)
+    slow_ma = sma(close, slow_period)
+    atr = wilder_atr(high, low, close, atr_period)
+    close_arr = np.asarray(close, dtype=float)
+    valid = ~(np.isnan(fast_ma) | np.isnan(slow_ma) | np.isnan(atr))
+    with np.errstate(invalid="ignore"):
+        trend_ok = valid & (fast_ma > slow_ma) & (close_arr > slow_ma)
+        cross_down = np.zeros(len(close_arr), dtype=bool)
+        cross_down[1:] = (
+            valid[1:] & (fast_ma[:-1] > slow_ma[:-1]) & (fast_ma[1:] <= slow_ma[1:])
+        )
+    return trend_ok, cross_down, fast_ma, slow_ma, atr

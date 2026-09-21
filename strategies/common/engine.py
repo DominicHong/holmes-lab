@@ -34,11 +34,12 @@ def make_cerebro(
     initial_cash: float = INITIAL_CASH,
     fund_mode: bool = FUND_MODE,
     fund_start_value: float = FUND_START_VALUE,
+    data_feed: type[bt.feed.DataBase] = bt.feeds.PandasData,
     plot: bool = False,
 ) -> bt.Cerebro:
     cerebro = bt.Cerebro(stdstats=False, cheat_on_open=True)
     cerebro.addstrategy(strategy_cls, **(strategy_params or {}))
-    cerebro.adddata(bt.feeds.PandasData(dataname=data))
+    cerebro.adddata(data_feed(dataname=data))
     cerebro.broker.setcash(initial_cash)
     cerebro.broker.setcommission(commission=COMMISSION_RATE)
     cerebro.broker.set_slippage_perc(SLIPPAGE_RATE, slip_open=True)
@@ -73,10 +74,13 @@ def run_backtest(
     strategy_params: dict | None = None,
     initial_cash: float = INITIAL_CASH,
     strategy_name: str | None = None,
+    data_feed: type[bt.feed.DataBase] = bt.feeds.PandasData,
     plot: bool = False,
 ):
     """运行单策略回测，返回 (strategy, summary)。"""
-    cerebro = make_cerebro(data, strategy_cls, strategy_params, initial_cash, plot=plot)
+    cerebro = make_cerebro(
+        data, strategy_cls, strategy_params, initial_cash, data_feed=data_feed, plot=plot
+    )
     strategy = cerebro.run()[0]
     summary = build_summary(strategy, initial_cash, strategy_name)
     if plot:

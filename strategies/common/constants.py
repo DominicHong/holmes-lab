@@ -12,6 +12,7 @@ DATA_DIR = PROJECT_ROOT / "data"
 
 AU9999_DAILY_CSV = DATA_DIR / "AU9999_Daily.csv"
 GOLD_ETF_DAILY_CSV = DATA_DIR / "518880.SH.csv"
+GOLD_ETF_MINUTES_CSV = DATA_DIR / "518880.sh.minutes.csv"
 
 # ---------- 账户 ----------
 INITIAL_CASH = 1_000_000.0

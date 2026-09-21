@@ -32,8 +32,10 @@ from .constants import (
     BACKTEST_END,
     BACKTEST_START,
     GOLD_ETF_DAILY_CSV,
+    GOLD_ETF_MINUTES_CSV,
     PROJECT_ROOT,
 )
+from .indicators import build_ma_cross_signals
 
 OHLCV_COLUMNS = ["open", "high", "low", "close", "volume"]
 CSV_COLUMNS = ["date", "open", "high", "low", "close", "volume", "amt"]
@@ -88,6 +90,122 @@ def load_daily_csv(
         df = df[df.index <= pd.Timestamp(end)]
 
     return df[OHLCV_COLUMNS + ["openinterest"]]
+
+
+# ---------- 分钟线快照（s1c 盘中策略） ----------
+
+MINUTE_SNAPSHOT_COLUMNS = [
+    "open",
+    "high",
+    "low",
+    "close",
+    "volume",
+    "openinterest",
+    "signal_close",
+    "sig_high",
+    "sig_low",
+    "sma_fast",
+    "sma_slow",
+    "atr",
+    "cross_down",
+]
+
+
+def read_minute_quotes(csv_path: str | Path = GOLD_ETF_MINUTES_CSV) -> pd.DataFrame:
+    """读取分钟线并打上 day（日期）/ hm（时点）标签，供不同信号与成交时点复用。"""
+    df = pd.read_csv(
+        csv_path,
+        usecols=["date", "open", "high", "low", "close", "volume"],
+        parse_dates=["date"],
+    )
+    df = df.sort_values("date").drop_duplicates(subset="date", keep="last")
+    df = df.dropna(subset=["date", "open", "high", "low", "close"])
+    df["day"] = df["date"].dt.normalize()
+    df["hm"] = df["date"].dt.strftime("%H:%M")
+    return df
+
+
+def _shift_time(hm: str, minutes: int) -> str:
+    hour, minute = map(int, hm.split(":"))
+    total = (hour * 60 + minute + minutes) % (24 * 60)
+    return f"{total // 60:02d}:{total % 60:02d}"
+
+
+def build_minute_snapshots(
+    quotes: pd.DataFrame,
+    signal_time: str = "14:45",
+    exec_delay_minutes: int = 2,
+) -> pd.DataFrame:
+    """把分钟线聚合成 s1c 的日频快照（尚未计算指标）：
+
+    - open  = 信号时点后 exec_delay 分钟的收盘价（成交参考价，回测中经滑点成交）；
+    - high/low = 9:30 ~ 成交时点的最高/最低（供撮合时的滑点边界使用）；
+    - close = 15:00 收盘价（净值估值口径，与日线回测一致）；
+    - signal_close / sig_high / sig_low = 信号时点的快照（当作当日“收盘价”算指标）。
+    """
+    exec_time = _shift_time(signal_time, exec_delay_minutes)
+    eod = quotes[quotes["hm"] == "15:00"].set_index("day")
+    sig = quotes[quotes["hm"] == signal_time].set_index("day")
+    exe = quotes[quotes["hm"] == exec_time].set_index("day")
+    up_to_sig = quotes[quotes["hm"] <= signal_time]
+    up_to_exec = quotes[quotes["hm"] <= exec_time]
+
+    snap = pd.DataFrame(
+        {
+            "open": exe["close"],
+            "high": up_to_exec.groupby("day")["high"].max(),
+            "low": up_to_exec.groupby("day")["low"].min(),
+            "close": eod["close"],
+            "volume": eod["volume"],
+            "signal_close": sig["close"],
+            "sig_high": up_to_sig.groupby("day")["high"].max(),
+            "sig_low": up_to_sig.groupby("day")["low"].min(),
+        }
+    )
+    snap["openinterest"] = 0.0
+    snap = snap.dropna(subset=["open", "high", "low", "close", "signal_close", "sig_high", "sig_low"])
+    snap = snap.sort_index()
+    snap.index.name = "date"
+    return snap
+
+
+def load_minute_snapshots(
+    csv_path: str | Path = GOLD_ETF_MINUTES_CSV,
+    start: str | None = None,
+    end: str | None = None,
+    signal_time: str = "14:45",
+    exec_delay_minutes: int = 2,
+    fast_period: int = 30,
+    slow_period: int = 90,
+    atr_period: int = 14,
+) -> pd.DataFrame:
+    """读取分钟线并生成带预计算指标的 s1c 日频快照。
+
+    backtrader 在 cheat_on_open 的 next_open 中尚未更新指标，因此 SMA/ATR/死叉
+    在装载阶段用 strategies.common.indicators 的 pandas 版本算好（与 backtrader 同口径）。
+    start/end 缺省时分别取 BACKTEST_START / BACKTEST_END。
+    """
+    snap = build_minute_snapshots(read_minute_quotes(csv_path), signal_time, exec_delay_minutes)
+    _, cross_down, sma_fast, sma_slow, atr = build_ma_cross_signals(
+        snap["signal_close"],
+        snap["sig_high"],
+        snap["sig_low"],
+        fast_period=fast_period,
+        slow_period=slow_period,
+        atr_period=atr_period,
+    )
+    snap["sma_fast"] = sma_fast
+    snap["sma_slow"] = sma_slow
+    snap["atr"] = atr
+    snap["cross_down"] = cross_down.astype(float)
+
+    start = start or BACKTEST_START
+    end = end or BACKTEST_END
+    if start is not None:
+        snap = snap[snap.index >= pd.Timestamp(start)]
+    if end is not None:
+        snap = snap[snap.index <= pd.Timestamp(end)]
+    return snap[MINUTE_SNAPSHOT_COLUMNS]
 
 
 # ---------- iFinD 数据抓取 ----------
