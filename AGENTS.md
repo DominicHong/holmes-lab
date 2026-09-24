@@ -19,7 +19,7 @@ No tests, CI, or packaging. Verification = run a backtest and compare numbers ag
 - All strategies: `python -m strategies.au9999_cta.run`
 - Selected strategy: `python -m strategies.au9999_cta.run --strategies s1a_ma_cross_trailing s1c_ma_cross_intraday` (names = keys of `STRATEGIES` in `strategies/au9999_cta/__init__.py`)
 - Other symbol: add `--csv data/518880.SH.csv` (output goes to `results/518880.SH/`, not the default dir)
-- Window comparison (B&H/s1a/s1b/s1c over bull/bear/sideways windows): `python -m strategies.au9999_cta.compare_windows`
+- Window comparison (B&H/s1a/s1c over bull/bear/sideways windows): `python -m strategies.au9999_cta.compare_windows`
 - Update committed market data via iFinD: `python -m strategies.common.data_loader [au9999|518880] [--dry-run] [--source auto|sdk|http]`
 - `.vscode/` pytest config points at a nonexistent `tests/` dir
 

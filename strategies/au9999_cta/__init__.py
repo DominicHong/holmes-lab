@@ -4,7 +4,6 @@ from pathlib import Path
 
 from .buy_and_hold import BuyAndHold
 from .s1a_ma_cross_trailing import MaCrossTrailingStop
-from .s1b_vol_filtered_ma_cross import VolFilteredMaCross
 from .s1c_ma_cross_intraday import IntradayMaCrossTrailingStop
 from .s2_donchian_breakout import DonchianBreakout
 from .s3_bollinger_squeeze import BollingerSqueeze
@@ -21,7 +20,6 @@ BACKTEST_END = "2026-09-01"
 STRATEGIES = {
     "buy_and_hold": BuyAndHold,
     "s1a_ma_cross_trailing": MaCrossTrailingStop,
-    "s1b_vol_filtered_ma_cross": VolFilteredMaCross,
     "s1c_ma_cross_intraday": IntradayMaCrossTrailingStop,
     "s2_donchian_breakout": DonchianBreakout,
     "s3_bollinger_squeeze": BollingerSqueeze,
@@ -41,5 +39,4 @@ __all__ = [
     "RESULTS_DIR",
     "RsiMeanReversion",
     "STRATEGIES",
-    "VolFilteredMaCross",
 ]

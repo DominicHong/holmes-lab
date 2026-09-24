@@ -1,4 +1,4 @@
-"""按文档《回测验证》口径，比较 Buy-and-Hold / s1a / s1b / s1c 在各区间中的表现。
+"""按文档《回测验证》口径，比较 Buy-and-Hold / s1a / s1c 在各区间中的表现。
 
 用法（在仓库根目录执行）：
     python -m strategies.au9999_cta.compare_windows
@@ -6,9 +6,9 @@
     python -m strategies.au9999_cta.compare_windows --results-dir strategies/au9999_cta/results/window_comparison
 
 口径（docs/trade_strat/au9999_cta.md 回测验证）：
-- 标的 518880.SH：日线 data/518880.SH.csv（B&H / s1a / s1b），
+- 标的 518880.SH：日线 data/518880.SH.csv（B&H / s1a），
   分钟线 data/518880.sh.minutes.csv（s1c，14:45 信号 / 14:47 成交）——s1c 无日线口径，
-  四策略同标的口径可比只能基于 518880.SH；
+  三策略同标的口径可比只能基于 518880.SH；
 - 窗口前预热、窗口起点空仓：
   · 日线策略一次性加载全历史，指标自然预热；动态子类加 trade_start 参数，
     窗口起点前不登记入场，因此窗口开始时指标已预热且账户空仓；
@@ -43,14 +43,12 @@ from . import RESULTS_DIR, STRATEGIES
 DEFAULT_STRATEGIES = [
     "buy_and_hold",
     "s1a_ma_cross_trailing",
-    "s1b_vol_filtered_ma_cross",
     "s1c_ma_cross_intraday",
 ]
 
 SHORT_NAMES = {
     "buy_and_hold": "BuyAndHold",
     "s1a_ma_cross_trailing": "s1a",
-    "s1b_vol_filtered_ma_cross": "s1b",
     "s1c_ma_cross_intraday": "s1c",
 }
 
@@ -86,13 +84,13 @@ def window_gated(cls: type[bt.Strategy]) -> type[bt.Strategy]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="B&H / s1a / s1b / s1c 分区间回测对比（518880.SH）")
+    parser = argparse.ArgumentParser(description="B&H / s1a / s1c 分区间回测对比（518880.SH）")
     parser.add_argument(
         "--strategies",
         nargs="+",
         choices=sorted(STRATEGIES),
         default=DEFAULT_STRATEGIES,
-        help="要对比的策略（默认四个：buy_and_hold / s1a / s1b / s1c）",
+        help="要对比的策略（默认三个：buy_and_hold / s1a / s1c）",
     )
     parser.add_argument("--daily-csv", default=None, help="日线 CSV（默认 data/518880.SH.csv）")
     parser.add_argument("--minute-csv", default=None, help="分钟线 CSV（默认 data/518880.sh.minutes.csv）")
@@ -211,7 +209,7 @@ def write_markdown(rows: list[dict], out_path: Path, daily_data: pd.DataFrame, s
     df = pd.DataFrame(rows)
     df["label"] = df["strategy"].map(SHORT_NAMES)
     lines = [
-        "# 518880.SH 四策略分区间回测对比",
+        "# 518880.SH 三策略分区间回测对比",
         "",
         f"> 生成时间：{pd.Timestamp.now():%Y-%m-%d %H:%M}；"
         f"数据：日线 {daily_data.index[0].date()} ~ {daily_data.index[-1].date()}，"
