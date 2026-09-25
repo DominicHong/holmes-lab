@@ -9,6 +9,29 @@ import backtrader as bt
 import numpy as np
 import pandas as pd
 
+from .constants import TRADING_DAYS_PER_YEAR
+
+
+class RealizedVolatility(bt.Indicator):
+    """已实现波动率（年化）：过去 period 日简单日收益率的样本标准差 × √年化系数。
+
+    与文档口径一致（ddof=1）；首日收益率为空，故前 period+1 根 K 线无有效值。
+    """
+
+    lines = ("rv",)
+    params = (
+        ("period", 60),
+        ("annualize", float(TRADING_DAYS_PER_YEAR)),
+    )
+
+    def __init__(self):
+        self.addminperiod(self.p.period + 1)
+
+    def next(self):
+        closes = np.asarray(self.data.get(size=self.p.period + 1), dtype=float)
+        returns = np.diff(closes) / closes[:-1]
+        self.lines.rv[0] = float(np.std(returns, ddof=1) * math.sqrt(self.p.annualize))
+
 
 class OnBalanceVolume(bt.Indicator):
     """能量潮 OBV：收涨累加当日成交量，收跌累减，平盘不变。"""

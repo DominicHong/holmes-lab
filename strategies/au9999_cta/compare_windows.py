@@ -1,20 +1,24 @@
-"""按文档《回测验证》口径，比较 Buy-and-Hold / s1a / s1c 在各区间中的表现。
+"""按文档《回测验证》口径，比较任意日线/盘中策略在各区间中的表现。
 
 用法（在仓库根目录执行）：
     python -m strategies.au9999_cta.compare_windows
-    python -m strategies.au9999_cta.compare_windows --strategies s1a_ma_cross_trailing s1c_ma_cross_intraday
-    python -m strategies.au9999_cta.compare_windows --results-dir strategies/au9999_cta/results/window_comparison
+    python -m strategies.au9999_cta.compare_windows --strategies s1a_ma_cross_trailing s1b_vol_target_ma_cross
+    python -m strategies.au9999_cta.compare_windows --strategies s2_donchian_breakout s7_macd_turtle \\
+        --results-dir strategies/au9999_cta/results/window_comparison_s2_s7
+
+默认对比 Buy-and-Hold / s1a / s1c；--strategies 可指定 STRATEGIES 中的任意组合，
+因此也用于 s1a vs s1b、s2 vs s7 等成对对比。
 
 口径（docs/trade_strat/au9999_cta.md 回测验证）：
-- 标的 518880.SH：日线 data/518880.SH.csv（B&H / s1a），
-  分钟线 data/518880.sh.minutes.csv（s1c，14:45 信号 / 14:47 成交）——s1c 无日线口径，
-  三策略同标的口径可比只能基于 518880.SH；
+- 标的 518880.SH：日线 data/518880.SH.csv（B&H / s1a 等日线策略），
+  分钟线 data/518880.sh.minutes.csv（s1c，14:45 信号 / 14:47 成交）；
 - 窗口前预热、窗口起点空仓：
   · 日线策略一次性加载全历史，指标自然预热；动态子类加 trade_start 参数，
     窗口起点前不登记入场，因此窗口开始时指标已预热且账户空仓；
   · s1c 由 load_minute_snapshots 在装载阶段对全历史预计算 SMA30/90、ATR14 后再按窗口切片；
 - 成本单边手续费 0.02% + 滑点 0.02%，percent_equity 100%，取自 common/constants.py；
-- 指标：收益率、年化、最大回撤、Sharpe（窗口内日收益，252 日年化）、胜率、交易次数；
+- 指标：收益率、年化、最大回撤、Sharpe（窗口内日收益，252 日年化，
+  无风险利率取 common/constants.py 的 RISK_FREE_RATE，默认 0 即不减）、胜率、交易次数；
   除交易统计天然只含窗口内已平仓交易外，净值类指标也只在窗口切片上复算，
   避免预热空仓段稀释 Sharpe。
 """
@@ -33,6 +37,7 @@ from ..common.constants import (
     GOLD_ETF_DAILY_CSV,
     GOLD_ETF_MINUTES_CSV,
     INITIAL_CASH,
+    RISK_FREE_RATE,
     TRADING_DAYS_PER_YEAR,
 )
 from ..common.data_loader import load_daily_csv, load_minute_snapshots
@@ -49,7 +54,13 @@ DEFAULT_STRATEGIES = [
 SHORT_NAMES = {
     "buy_and_hold": "BuyAndHold",
     "s1a_ma_cross_trailing": "s1a",
+    "s1b_vol_target_ma_cross": "s1b",
     "s1c_ma_cross_intraday": "s1c",
+    "s2_donchian_breakout": "s2",
+    "s3_bollinger_squeeze": "s3",
+    "s4_keltner_breakout": "s4",
+    "s5_rsi_mean_reversion": "s5",
+    "s7_macd_turtle": "s7",
 }
 
 # (区间名, 起始, 结束)，取自文档《回测验证》与附录：默认全区间 + 3 个熊市 + 3 个震荡区间。
@@ -84,7 +95,7 @@ def window_gated(cls: type[bt.Strategy]) -> type[bt.Strategy]:
 
 
 def parse_args() -> argparse.Namespace:
-    parser = argparse.ArgumentParser(description="B&H / s1a / s1c 分区间回测对比（518880.SH）")
+    parser = argparse.ArgumentParser(description="多策略分区间回测对比（518880.SH）")
     parser.add_argument(
         "--strategies",
         nargs="+",
@@ -126,8 +137,11 @@ def window_summary(
 
     returns = values.pct_change().dropna()
     std = float(returns.std(ddof=1))
+    # 无风险利率与 common/constants.py 一致（默认 0，即不减无风险利率）；
+    # 年化利率按 (1+rf)^(1/252)-1 折算为日频，与 backtrader SharpeRatio 口径一致
+    daily_rf = (1.0 + RISK_FREE_RATE) ** (1.0 / TRADING_DAYS_PER_YEAR) - 1.0
     sharpe = (
-        float(returns.mean() / std * math.sqrt(TRADING_DAYS_PER_YEAR))
+        float((returns.mean() - daily_rf) / std * math.sqrt(TRADING_DAYS_PER_YEAR))
         if len(returns) > 1 and std > 0
         else None
     )
@@ -205,15 +219,22 @@ def pivot_markdown(df: pd.DataFrame, value_col: str, formatter) -> list[str]:
     return lines
 
 
-def write_markdown(rows: list[dict], out_path: Path, daily_data: pd.DataFrame, snapshots: pd.DataFrame) -> None:
+def write_markdown(
+    rows: list[dict],
+    out_path: Path,
+    daily_data: pd.DataFrame,
+    snapshots: pd.DataFrame | None,
+) -> None:
     df = pd.DataFrame(rows)
     df["label"] = df["strategy"].map(SHORT_NAMES)
+    has_intraday = snapshots is not None and (df["strategy"] == "s1c_ma_cross_intraday").any()
+    data_note = f"日线 {daily_data.index[0].date()} ~ {daily_data.index[-1].date()}"
+    if snapshots is not None:
+        data_note += f"，分钟快照 {snapshots.index[0].date()} ~ {snapshots.index[-1].date()}"
     lines = [
-        "# 518880.SH 三策略分区间回测对比",
+        "# 518880.SH 多策略分区间回测对比",
         "",
-        f"> 生成时间：{pd.Timestamp.now():%Y-%m-%d %H:%M}；"
-        f"数据：日线 {daily_data.index[0].date()} ~ {daily_data.index[-1].date()}，"
-        f"分钟快照 {snapshots.index[0].date()} ~ {snapshots.index[-1].date()}。",
+        f"> 生成时间：{pd.Timestamp.now():%Y-%m-%d %H:%M}；数据：{data_note}。",
         "> 复现：`python -m strategies.au9999_cta.compare_windows`",
         "",
         "## 口径",
@@ -221,20 +242,26 @@ def write_markdown(rows: list[dict], out_path: Path, daily_data: pd.DataFrame, s
         "- 标的 518880.SH；s1c 使用分钟线 14:45 信号 / 14:47 成交，其余策略日线收盘确认、次日开盘成交。",
         "- 窗口前预热、窗口起点空仓：日线策略全历史喂指标 + `trade_start` 屏蔽窗口前入场；",
         "  s1c 预计算指标后按窗口切片。",
-        "- 成本：单边手续费 0.02% + 滑点 0.02%；仓位 `percent_equity` 100%，1 克取整。",
-        "- 指标在窗口切片上复算：收益 = 窗口末/初始资金−1；Sharpe = 窗口日收益 mean/std(ddof=1)×√252；",
+        "- 成本：单边手续费 0.02% + 滑点 0.02%；仓位 `percent_equity` 100%（s1b 为波动率目标档位），1 克取整。",
+        "- 指标在窗口切片上复算：收益 = 窗口末/初始资金−1；Sharpe = (窗口日收益均值 − 日频无风险利率)/",
+        "  std(ddof=1)×√252（无风险利率取 RISK_FREE_RATE，默认 0）；",
         "  最大回撤 = 窗口净值（含起点）峰谷回撤；胜率/次数 = 窗口内已平仓交易。B&H 无平仓交易，胜率记 `-`。",
         "- 熊市/震荡区间取自文档《回测验证》：熊市 2014-03-17~2015-08-10、2020-08-07~2021-03-05、",
         "  2026-01-29~2026-07-01；震荡 2017-07-21~2018-01-17、2018-05-25~2018-10-24、2021-07-08~2022-03-04。",
         "",
-        "> **与文档 s1c 分段数字的差异说明**：文档策略一C 章节引用的分段数字（如 2026H1 s1c -10.1% /",
-        "> 回撤 13.5%）来自未纳入版本库的旧实验（仅残留 `results/intraday_timing/summary.csv`），",
-        "> 该实验未强制“窗口起点空仓”：其 2026H1 数字可由 s1c 全历史连续运行、持仓跨越窗口起点复现",
-        "> （本仓库连续运行复算 -9.85% / 回撤 13.53%，与“2026-01-30 当日 14:47 离场”的叙述一致）。",
-        "> 本表按文档统一约定统一为窗口前预热、窗口起点空仓，故 s1c 在上述窗口的数值与文档旧数字不同；",
-        "> 全区间口径两者一致，本表 s1a/s1c/B&H 全区间结果与文档表格一致。",
-        "",
     ]
+    if has_intraday:
+        lines.extend(
+            [
+                "> **与文档 s1c 分段数字的差异说明**：文档策略一C 章节引用的分段数字（如 2026H1 s1c -10.1% /",
+                "> 回撤 13.5%）来自未纳入版本库的旧实验（仅残留 `results/intraday_timing/summary.csv`），",
+                "> 该实验未强制“窗口起点空仓”：其 2026H1 数字可由 s1c 全历史连续运行、持仓跨越窗口起点复现",
+                "> （本仓库连续运行复算 -9.85% / 回撤 13.53%，与“2026-01-30 当日 14:47 离场”的叙述一致）。",
+                "> 本表按文档统一约定统一为窗口前预热、窗口起点空仓，故 s1c 在上述窗口的数值与文档旧数字不同；",
+                "> 全区间口径两者一致，本表 s1a/s1c/B&H 全区间结果与文档表格一致。",
+                "",
+            ]
+        )
 
     for _, group in df.groupby("window", sort=False):
         head = group.iloc[0]
@@ -316,13 +343,10 @@ def main() -> None:
     print(pivot.map(lambda v: f"{v:+.2%}").to_string())
     print()
 
-    if snapshots is not None:
-        md_path = results_dir / "report.md"
-        write_markdown(rows, md_path, daily_data, snapshots)
-        print(f"对比 CSV：{csv_path}")
-        print(f"Markdown 报告：{md_path}")
-    else:
-        print(f"对比 CSV：{csv_path}")
+    md_path = results_dir / "report.md"
+    write_markdown(rows, md_path, daily_data, snapshots)
+    print(f"对比 CSV：{csv_path}")
+    print(f"Markdown 报告：{md_path}")
 
 
 if __name__ == "__main__":
