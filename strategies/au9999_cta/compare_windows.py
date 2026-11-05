@@ -3,11 +3,10 @@
 用法（在仓库根目录执行）：
     python -m strategies.au9999_cta.compare_windows
     python -m strategies.au9999_cta.compare_windows --strategies s1a_ma_cross_trailing s1b_vol_target_ma_cross
-    python -m strategies.au9999_cta.compare_windows --strategies s2_donchian_breakout s7_macd_turtle \\
-        --results-dir strategies/au9999_cta/results/window_comparison_s2_s7
+    python -m strategies.au9999_cta.compare_windows --strategies s3_bollinger_squeeze s7_macd_turtle
 
 默认对比 Buy-and-Hold / s1a / s1c；--strategies 可指定 STRATEGIES 中的任意组合，
-因此也用于 s1a vs s1b、s2 vs s7 等成对对比。
+因此也用于 s1a vs s1b、s3 vs s7 等成对对比。
 
 口径（docs/trade_strat/au9999_cta.md 回测验证）：
 - 标的 518880.SH：日线 data/518880.SH.csv（B&H / s1a 等日线策略），
@@ -56,10 +55,7 @@ SHORT_NAMES = {
     "s1a_ma_cross_trailing": "s1a",
     "s1b_vol_target_ma_cross": "s1b",
     "s1c_ma_cross_intraday": "s1c",
-    "s2_donchian_breakout": "s2",
     "s3_bollinger_squeeze": "s3",
-    "s4_keltner_breakout": "s4",
-    "s5_rsi_mean_reversion": "s5",
     "s7_macd_turtle": "s7",
 }
 

@@ -6,10 +6,7 @@ from .buy_and_hold import BuyAndHold
 from .s1a_ma_cross_trailing import MaCrossTrailingStop
 from .s1b_vol_target_ma_cross import VolTargetMaCross
 from .s1c_ma_cross_intraday import IntradayMaCrossTrailingStop
-from .s2_donchian_breakout import DonchianBreakout
 from .s3_bollinger_squeeze import BollingerSqueeze
-from .s4_keltner_breakout import KeltnerBreakout
-from .s5_rsi_mean_reversion import RsiMeanReversion
 from .s7_macd_turtle import MacdTurtle
 
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -24,10 +21,7 @@ STRATEGIES = {
     "s1a_ma_cross_trailing": MaCrossTrailingStop,
     "s1b_vol_target_ma_cross": VolTargetMaCross,
     "s1c_ma_cross_intraday": IntradayMaCrossTrailingStop,
-    "s2_donchian_breakout": DonchianBreakout,
     "s3_bollinger_squeeze": BollingerSqueeze,
-    "s4_keltner_breakout": KeltnerBreakout,
-    "s5_rsi_mean_reversion": RsiMeanReversion,
     "s7_macd_turtle": MacdTurtle,
 }
 
@@ -36,13 +30,10 @@ __all__ = [
     "BACKTEST_START",
     "BollingerSqueeze",
     "BuyAndHold",
-    "DonchianBreakout",
     "IntradayMaCrossTrailingStop",
-    "KeltnerBreakout",
     "MaCrossTrailingStop",
     "MacdTurtle",
     "RESULTS_DIR",
-    "RsiMeanReversion",
     "STRATEGIES",
     "VolTargetMaCross",
 ]
