@@ -21,6 +21,7 @@ from __future__ import annotations
 import argparse
 import datetime
 import json
+import re
 import tkinter as tk
 import urllib.request
 from dataclasses import dataclass
@@ -205,9 +206,14 @@ def _parse_frequency(value) -> int:
     if isinstance(value, (int, float)) and not isinstance(value, bool):
         return int(value)
     text = str(value).strip()
-    for key, freq in (("半年", 2), ("季", 4), ("月", 12), ("年", 1)):
+    for key, freq in (("半年", 2), ("季", 4), ("月", 12)):
         if key in text:
             return freq
+    match = re.search(r"(\d+)\s*次", text)  # "2次/年"、"每年2次"
+    if match:
+        return int(match.group(1))
+    if "年" in text:
+        return 1
     return int(float(text))
 
 
@@ -383,12 +389,12 @@ class YieldTaxIFind(tk.Frame):
         self.settle2 = tk.StringVar(value=str(datetime.date.today() + datetime.timedelta(days=1)))  # 交割日期2
 
         frame2 = Frame(self)
-        Label(frame2, text='税前收益率 ').grid(row=0, column=0)
+        Label(frame2, text='税前收益率(%) ').grid(row=0, column=0)
         self.disp_tf = Entry(frame2, width=20, font=('Arial', 10))
         self.disp_tf.grid(row=0, column=1)
         self.disp_tf3 = Entry(frame2, width=20, font=('Arial', 10))
         self.disp_tf3.grid(row=0, column=2, padx=5)
-        Label(frame2, text='参考值').grid(row=1, column=0)
+        Label(frame2, text='参考值(%)').grid(row=1, column=0)
         self.disp_tf2 = Entry(frame2, width=20, font=('Arial', 10))
         self.disp_tf2.grid(row=1, column=1)
         self.disp_tf4 = Entry(frame2, width=20, font=('Arial', 10))
@@ -398,12 +404,12 @@ class YieldTaxIFind(tk.Frame):
         self.disp_tf5.grid(row=2, column=1)
         self.disp_tf6 = Entry(frame2, width=20, font=('Arial', 10))
         self.disp_tf6.grid(row=2, column=2, padx=5)
-        Label(frame2, text='剩余期限').grid(row=3, column=0)
+        Label(frame2, text='剩余期限(年)').grid(row=3, column=0)
         self.disp_tf7 = Entry(frame2, width=20, font=('Arial', 10))
         self.disp_tf7.grid(row=3, column=1)
         self.disp_tf8 = Entry(frame2, width=20, font=('Arial', 10))
         self.disp_tf8.grid(row=3, column=2, padx=5)
-        Label(frame2, text='票面利率').grid(row=4, column=0)
+        Label(frame2, text='票面利率(%)').grid(row=4, column=0)
         self.disp_tf9 = Entry(frame2, width=20, font=('Arial', 10))
         self.disp_tf9.grid(row=4, column=1)
         self.disp_tf10 = Entry(frame2, width=20, font=('Arial', 10))
@@ -420,7 +426,7 @@ class YieldTaxIFind(tk.Frame):
         Label(frame1, text='  债券代码* ').grid(row=0, column=0)
         Entry(frame1, textvariable=self.ma).grid(row=0, column=1)
         Entry(frame1, textvariable=self.ma2).grid(row=0, column=2, padx=5)
-        Label(frame1, text='ytm*').grid(row=1, column=0)
+        Label(frame1, text='ytm*(%)').grid(row=1, column=0)
         Entry(frame1, textvariable=self.ytm).grid(row=1, column=1)
         Entry(frame1, textvariable=self.ytm2).grid(row=1, column=2, padx=5)
         Label(frame1, text='交割日期*').grid(row=2, column=0)
@@ -463,10 +469,10 @@ class YieldTaxIFind(tk.Frame):
                     bond_code, ytm_value, settlement_date, source=self.source
                 )
                 values = (
-                    f"{ytm_tax}",
-                    f"{reference}",
+                    f"{ytm_tax:.4f}",
+                    f"{reference:.4f}",
                     sec_name,
-                    f"{remaining_years:.2f}years",
+                    f"{remaining_years:.2f}",
                     f"{coupon_rate:.2f}",
                 )
                 for entry, value in zip(entries, values):
