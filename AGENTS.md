@@ -36,7 +36,7 @@ No tests, CI, or packaging. Verification = run a backtest and compare numbers ag
 - Long-only: exits always `self.close()`; never open shorts even when the spec mentions bearish signals.
 - Signal confirmed at bar close, fill next open. Engine uses `cheat_on_open=True`; size is computed in `next_open` from the real open price. In `next()` use `buy_next_open()` / `sell_next_open()`, not raw `buy()/close()`.
 - Global parameters (costs, sizing, initial cash, fund mode) live in `common/constants.py`; do not hardcode them in strategy files.
-- `s1c_ma_cross_intraday` (`data_kind = "minute_snapshot"`): SMA/ATR/cross indicators are precomputed in pandas in `load_minute_snapshots` because backtrader indicators are not updated inside `next_open`. Changing s1a periods (SMA 30/90, ATR 14) requires syncing that precompute.
+- `s1c_ma_cross_intraday` (`data_kind = "minute_snapshot"`): SMA/ATR/cross indicators are precomputed in pandas in `load_minute_snapshots` because backtrader indicators are not updated inside `next_open`. Changing s1a periods (SMA 30/90, SMA10 ref line, ATR 14) requires syncing that precompute.
 - Keep module docstrings current: every strategy file header documents logic, usage, and the latest backtest figures (returns/Sharpe/trades), and `docs/trade_strat/au9999_cta.md` is the authoritative spec. Logic/param changes should update both, plus `compare_windows.py` expectations if the window metrics change.
 
 ## Data

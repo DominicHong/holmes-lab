@@ -14,16 +14,19 @@ class IntradaySnapshotData(bt.feeds.PandasData):
     - high/low = 9:30 ~ 14:47 的高低点（供撮合滑点边界使用）；
     - close = 15:00 收盘价（净值估值口径）；
     - signal_close / sig_high / sig_low = 14:45 信号快照；
-    - sma_fast / sma_slow / atr / cross_down = 预计算指标。
+    - sma_fast / sma_slow / sma_ref / atr / cross_down = 预计算指标。
     """
 
-    lines = ("signal_close", "sig_high", "sig_low", "sma_fast", "sma_slow", "atr", "cross_down")
+    lines = (
+        "signal_close", "sig_high", "sig_low", "sma_fast", "sma_slow", "sma_ref", "atr", "cross_down"
+    )
     params = (
         ("signal_close", -1),
         ("sig_high", -1),
         ("sig_low", -1),
         ("sma_fast", -1),
         ("sma_slow", -1),
+        ("sma_ref", -1),
         ("atr", -1),
         ("cross_down", -1),
     )

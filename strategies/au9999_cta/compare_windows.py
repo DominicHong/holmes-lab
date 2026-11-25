@@ -14,7 +14,7 @@
 - 窗口前预热、窗口起点空仓：
   · 日线策略一次性加载全历史，指标自然预热；动态子类加 trade_start 参数，
     窗口起点前不登记入场，因此窗口开始时指标已预热且账户空仓；
-  · s1c 由 load_minute_snapshots 在装载阶段对全历史预计算 SMA30/90、ATR14 后再按窗口切片；
+  · s1c 由 load_minute_snapshots 在装载阶段对全历史预计算 SMA10/30/90、ATR14 后再按窗口切片；
 - 成本单边手续费 0.02% + 滑点 0.02%，percent_equity 100%，取自 common/constants.py；
 - 指标：收益率、年化、最大回撤、Sharpe（窗口内日收益，252 日年化，
   无风险利率取 common/constants.py 的 RISK_FREE_RATE，默认 0 即不减）、胜率、交易次数；
@@ -223,7 +223,12 @@ def write_markdown(
 ) -> None:
     df = pd.DataFrame(rows)
     df["label"] = df["strategy"].map(SHORT_NAMES)
-    has_intraday = snapshots is not None and (df["strategy"] == "s1c_ma_cross_intraday").any()
+    strategies = list(dict.fromkeys(df["strategy"]))
+    repro = (
+        "python -m strategies.au9999_cta.compare_windows --strategies "
+        + " ".join(strategies)
+        + f" --results-dir {out_path.parent.as_posix()}"
+    )
     data_note = f"日线 {daily_data.index[0].date()} ~ {daily_data.index[-1].date()}"
     if snapshots is not None:
         data_note += f"，分钟快照 {snapshots.index[0].date()} ~ {snapshots.index[-1].date()}"
@@ -231,7 +236,7 @@ def write_markdown(
         "# 518880.SH 多策略分区间回测对比",
         "",
         f"> 生成时间：{pd.Timestamp.now():%Y-%m-%d %H:%M}；数据：{data_note}。",
-        "> 复现：`python -m strategies.au9999_cta.compare_windows`",
+        f"> 复现：`{repro}`",
         "",
         "## 口径",
         "",
@@ -246,18 +251,6 @@ def write_markdown(
         "  2026-01-29~2026-07-01；震荡 2017-07-21~2018-01-17、2018-05-25~2018-10-24、2021-07-08~2022-03-04。",
         "",
     ]
-    if has_intraday:
-        lines.extend(
-            [
-                "> **与文档 s1c 分段数字的差异说明**：文档策略一C 章节引用的分段数字（如 2026H1 s1c -10.1% /",
-                "> 回撤 13.5%）来自未纳入版本库的旧实验（仅残留 `results/intraday_timing/summary.csv`），",
-                "> 该实验未强制“窗口起点空仓”：其 2026H1 数字可由 s1c 全历史连续运行、持仓跨越窗口起点复现",
-                "> （本仓库连续运行复算 -9.85% / 回撤 13.53%，与“2026-01-30 当日 14:47 离场”的叙述一致）。",
-                "> 本表按文档统一约定统一为窗口前预热、窗口起点空仓，故 s1c 在上述窗口的数值与文档旧数字不同；",
-                "> 全区间口径两者一致，本表 s1a/s1c/B&H 全区间结果与文档表格一致。",
-                "",
-            ]
-        )
 
     for _, group in df.groupby("window", sort=False):
         head = group.iloc[0]

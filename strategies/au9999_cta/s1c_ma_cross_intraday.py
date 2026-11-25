@@ -1,9 +1,10 @@
-"""策略一C：双均线趋势跟踪 + ATR 移动止损 + 盘中提前成交 + T+2 再入场（IntradayMaCrossTrailingStop）。
+"""策略一C：双均线趋势跟踪 + SMA10 贴线参考带 + ATR 移动止损 + 盘中提前成交 + T+2 再入场（IntradayMaCrossTrailingStop）。
 
-在策略一A（s1a）基础上只改执行时点，其余规则一致（不含 s1a 于 2026-11 新增的 SMA10 贴线入场带）：
+在策略一A（s1a）基础上只改执行时点，其余规则一致：
 
 - 信号：每日 14:45 快照（把 14:45 收盘价当作当日“收盘”，high/low 取 9:30~14:45 区间）
-  计算 SMA30 / SMA90 / ATR(14)：趋势向上（SMA30 > SMA90 且收盘价 > SMA90）时空仓即入场；
+  计算 SMA10 / SMA30 / SMA90 / ATR(14)：趋势向上（SMA30 > SMA90 且收盘价 > SMA90）、
+  且不在 SMA10 贴线区（收盘价仅高于 SMA10 但距离不足 1.5×ATR）时空仓即入场；
   移动止损 = max(入场价 − 2.5×ATR(入场日), 14:45 最高收盘 − 2.5×ATR(入场日))，只上移不下移；
   收盘价触及止损或死叉确认即出场；
 - 成交：信号成立当日 14:47 分钟收盘价（含单边手续费 0.02% + 滑点 0.02%），
@@ -19,27 +20,33 @@
 | 信号时点 | 15:00 收盘 | 14:45 快照 |
 | 成交时点 | 次日 09:30 开盘 | 当日 14:47 |
 | 止损后再入场 | 趋势仍向上即次日开盘反手 | 最早 T+2 日 14:45 再判断 |
-| 其它 | 趋势过滤 / 移动止损 / 死叉出场 / 仓位；另有 SMA10 贴线带 | 趋势过滤 / 移动止损 / 死叉出场 / 仓位（无贴线带） |
+| SMA10 贴线带 | 收盘价口径（1.5×ATR） | 14:45 快照口径（1.5×ATR） |
+| 其它 | 趋势过滤 / 移动止损 / 死叉出场 / 仓位 | 趋势过滤 / 移动止损 / 死叉出场 / 仓位 |
 
 【数据与实现】
 
 - 数据：data/518880.sh.minutes.csv，由 strategies.common.data_loader.load_minute_snapshots
-  聚合为日频快照；SMA/ATR/死叉在装载阶段预计算（backtrader 的 cheat_on_open 模式下
-  next_open 中指标尚未更新），公式与 backtrader 同口径。
-  指标周期在装载时固定为 SMA 30/90、ATR 14，与 s1a 当前参数一致，改动需同步两处。
+  聚合为日频快照；SMA10/SMA30/SMA90/ATR/死叉在装载阶段预计算（backtrader 的 cheat_on_open
+  模式下 next_open 中指标尚未更新），公式与 backtrader 同口径。
+  指标周期在装载时固定为 SMA 10/30/90、ATR 14，与 s1a 当前参数一致，改动需同步两处；
+  ref_band_atr=0 即关闭贴线带。
 - 撮合：引擎启用 cheat_on_open，next_open 中按当日 14:47 的 open 价定量并成交。
 
 【回测（518880.SH，2018-01-02 ~ 2026-09-01，成本单边 0.02% 费 + 0.02% 滑点）】
 
-- s1c        ：总收益 222.5%，最大回撤 18.4%，Sharpe 1.19，53 笔，胜率 52.8%；
+- s1c        ：总收益 225.0%，最大回撤 17.7%，Sharpe 1.22，48 笔，胜率 56.3%；
 - s1a 日线基准：总收益 244.6%，最大回撤 25.1%，Sharpe 1.16，50 笔，胜率 62.0%。
-- 差异集中在隔夜跳空（窗口前预热口径）：2026 高位急跌区间 s1c -10.1% / 回撤 13.5%，
-  s1a 日线 -12.4% / 回撤 22.1%（同为 2026-01-30 触及止损，日线只能 02-02 开盘成交）；
-  代价是常态年份因 T+2 延迟再入场而跑输。
+- 2026-11 引入 SMA10 贴线带（A/B）：222.5%→225.0%，回撤 18.4%→17.7%，
+  Sharpe 1.19→1.22，交易 53→48，胜率 52.8%→56.3%；
+  2026H1 窗口（窗口前预热、起点空仓）由 -16.0% 转为 +2.2%：贴线带使 01-30 的
+  14:45 贴线信号不入场，避开随后的跳空急跌，改在 02-02 低位入场。
+- 代价：2014-03-17~2015-08-10 长熊窗口 -14.6%→-15.1%，小幅变差。
 - 复现：python -m strategies.au9999_cta.run --strategies s1c_ma_cross_intraday --csv data/518880.SH.csv
 """
 
 from __future__ import annotations
+
+import math
 
 import backtrader as bt
 
@@ -54,6 +61,7 @@ class IntradayMaCrossTrailingStop(LongOnlyStrategyBase):
     params = (
         ("initial_atr_mult", 2.5),   # 初始止损距离
         ("trail_atr_mult", 2.5),     # 移动止损距离
+        ("ref_band_atr", 1.5),       # 贴线区宽度：0 ~ ref_band_atr×ATR 不入场
         ("reentry_delay", 2),        # 卖出后最早可在第几个交易日再入场（2 = T+2）
     )
 
@@ -75,6 +83,18 @@ class IntradayMaCrossTrailingStop(LongOnlyStrategyBase):
     def cross_down(self) -> bool:
         return float(self.data.cross_down[0]) > 0
 
+    def entry_zone_ok(self) -> bool:
+        """SMA 参考带（与 s1a 同口径，但用 14:45 快照价与快照 SMA10/ATR）。
+
+        快照收盘价仅高于参考线且距离不足 ref_band_atr×ATR 时视为贴线区，不入场。
+        """
+        atr = float(self.data.atr[0])
+        ref = float(self.data.sma_ref[0])
+        if not math.isfinite(atr) or atr <= 0 or not math.isfinite(ref):
+            return True
+        dist = (float(self.data.signal_close[0]) - ref) / atr
+        return not (0.0 < dist <= self.p.ref_band_atr)
+
     # ---------- 决策与成交 ----------
     def next_open(self):
         """cheat_on_open 下本 bar（14:45 信号 + 15:00 估值）完整可见，
@@ -85,7 +105,7 @@ class IntradayMaCrossTrailingStop(LongOnlyStrategyBase):
         if not self.position:
             if self.exit_bar is not None and len(self.data) - self.exit_bar < self.p.reentry_delay:
                 return
-            if self.trend_ok():
+            if self.trend_ok() and self.entry_zone_ok():
                 size = self.calc_size(float(self.data.open[0]))
                 if size > 0:
                     self.order = self.buy(size=size)

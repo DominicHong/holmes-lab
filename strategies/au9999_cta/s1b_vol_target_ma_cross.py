@@ -1,10 +1,12 @@
-"""策略一B：双均线趋势跟踪 + ATR 移动止损 + 波动率目标仓位（VolTargetMaCross）。
+"""策略一B：双均线趋势跟踪 + SMA10 贴线参考带 + ATR 移动止损 + 波动率目标仓位（VolTargetMaCross）。
 
-择时规则与策略一A（s1a）一致（s1a 于 2026-11 新增 SMA10 贴线入场带，本策略未包含）：
-- 入场：SMA30 > SMA90 且收盘价 > SMA90 的趋势向上期间，空仓即次日开盘买入；
+择时规则与策略一A（s1a）一致：
+- 入场：SMA30 > SMA90 且收盘价 > SMA90 的趋势向上期间，空仓、且不在 SMA10 贴线区
+  （收盘价仅高于 SMA10 但距离不足 1.5×ATR）时次日开盘买入；
 - 移动止损：止损价 = max(入场价 − 2.5×ATR(入场日), 持仓期最高收盘价 − 2.5×ATR(入场日))，
   只上移不下移；收盘价触及即次日开盘平仓，平仓后趋势仍向上则重新入场；
 - 趋势出场：死叉确认 → 次日开盘平仓；不设固定止盈。
+- 贴线区只约束入场，不影响止损、死叉出场与档位调仓。
 
 唯一差异是仓位：目标仓位系数 f = min(1, 目标年化波动 15% / RV60)，再档位化到
 {25%, 50%, 75%, 100%}。RV60 = 60 日已实现波动率（样本标准差 × √252，信号日收盘可得）。
@@ -13,16 +15,17 @@
   目标市值（上移加仓、下移部分减仓；加仓受可用现金约束）；
 - 档位变化不重置止损状态机（初始止损、移动止损仍按建仓日 ATR 计），
   部分减仓也不计入胜率统计的完整回合；
-- RV60 < 15%（或未预热）时 f = 1，仓位与 s1a 一致（入场仍不含 s1a 的 SMA10 贴线带）。
+- RV60 < 15%（或未预热）时 f = 1，仓位与 s1a 一致。
 
 回测（2018-01-01 ~ 2026-09-01，单边手续费 0.02% + 滑点 0.02%；对照 s1a）：
-- AU9999    ：总收益 246.5%，最大回撤 17.0%，Sharpe 1.40，34 笔，胜率 58.8%
+- AU9999    ：总收益 252.0%，最大回撤 14.0%，Sharpe 1.42，33 笔，胜率 63.6%
   （s1a：279.5% / 15.6% / 1.26 / 33 笔 / 66.7%）；
-- 518880.SH ：总收益 205.5%，最大回撤 18.5%，Sharpe 1.21，53 笔，胜率 58.5%
+- 518880.SH ：总收益 211.9%，最大回撤 17.8%，Sharpe 1.25，50 笔，胜率 62.0%
   （s1a：244.6% / 25.1% / 1.16 / 50 笔 / 62.0%）。
-窗口口径（窗口前预热、窗口起点空仓）下 518880：全区间 241.3%→198.5%（−42.8pp）、
-回撤 25.1%→18.5%、Sharpe 1.15→1.18，2026H1 回撤 22.1%→13.2%；
-震荡区间不再与 s1a 完全一致（s1a 的 SMA10 贴线带未包含在本策略中）。
+窗口口径（窗口前预热、窗口起点空仓）下 518880：全区间 198.5%→209.0%、
+回撤 18.5%→17.8%、Sharpe 1.18→1.24；三段熊市 −12.2%/−9.7%/−10.6%
+→ −10.3%/−9.0%/−10.6%，三段震荡 −3.7%/+0.4%/+1.4% → −1.4%/+0.4%/+2.3%，
+2026H1 与 2018H2 无变化。
 """
 
 from __future__ import annotations
@@ -43,6 +46,8 @@ class VolTargetMaCross(LongOnlyStrategyBase):
         ("atr_period", 14),
         ("initial_atr_mult", 2.5),   # 初始止损距离
         ("trail_atr_mult", 2.5),     # 移动止损距离
+        ("ref_period", 10),          # SMA 参考线周期
+        ("ref_band_atr", 1.5),       # 贴线区宽度：0 ~ ref_band_atr×ATR 不入场
         ("target_vol", 0.15),        # 目标年化波动
         ("vol_period", 60),          # 已实现波动率窗口
         ("vol_grid", 0.25),          # 仓位档位网格
@@ -53,6 +58,7 @@ class VolTargetMaCross(LongOnlyStrategyBase):
         super().__init__()
         self.ma_fast = bt.indicators.SMA(self.data.close, period=self.p.fast_period)
         self.ma_slow = bt.indicators.SMA(self.data.close, period=self.p.slow_period)
+        self.ma_ref = bt.indicators.SMA(self.data.close, period=self.p.ref_period)
         self.atr = bt.indicators.ATR(self.data, period=self.p.atr_period)
         self.cross_down = bt.indicators.CrossDown(self.ma_fast, self.ma_slow)
         self.rv = RealizedVolatility(self.data.close, period=self.p.vol_period)
@@ -75,6 +81,17 @@ class VolTargetMaCross(LongOnlyStrategyBase):
     def risk_per_gram(self):
         return self.p.initial_atr_mult * self.atr[0]
 
+    def entry_zone_ok(self) -> bool:
+        """SMA 参考带：刚站上参考线但尚未拉开距离（贴线区）时方向不明，不入场。
+
+        与 s1a 同口径：收盘价低于参考线（回踩）或高于参考线 ref_band_atr×ATR 以上才允许入场。
+        """
+        atr = float(self.atr[0])
+        if not math.isfinite(atr) or atr <= 0:
+            return True
+        dist = (float(self.data.close[0]) - float(self.ma_ref[0])) / atr
+        return not (0.0 < dist <= self.p.ref_band_atr)
+
     def calc_size(self, price: float) -> float:
         """percent_equity 模式下按建仓时确认的档位系数折算买入克数。"""
         if self.p.position_mode != "percent_equity":
@@ -90,7 +107,7 @@ class VolTargetMaCross(LongOnlyStrategyBase):
         if not self.position:
             if self.has_pending_order:
                 return
-            if trend_ok:
+            if trend_ok and self.entry_zone_ok():
                 self._entry_factor = self.signal_factor
                 self.buy_next_open(reason=f"趋势向上 + 目标仓位{self.signal_factor:.0%}")
             return

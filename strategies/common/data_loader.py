@@ -35,7 +35,7 @@ from .constants import (
     GOLD_ETF_MINUTES_CSV,
     PROJECT_ROOT,
 )
-from .indicators import build_ma_cross_signals
+from .indicators import build_ma_cross_signals, sma
 
 OHLCV_COLUMNS = ["open", "high", "low", "close", "volume"]
 CSV_COLUMNS = ["date", "open", "high", "low", "close", "volume", "amt"]
@@ -106,6 +106,7 @@ MINUTE_SNAPSHOT_COLUMNS = [
     "sig_low",
     "sma_fast",
     "sma_slow",
+    "sma_ref",
     "atr",
     "cross_down",
 ]
@@ -178,11 +179,12 @@ def load_minute_snapshots(
     fast_period: int = 30,
     slow_period: int = 90,
     atr_period: int = 14,
+    ref_period: int = 10,
 ) -> pd.DataFrame:
     """读取分钟线并生成带预计算指标的 s1c 日频快照。
 
-    backtrader 在 cheat_on_open 的 next_open 中尚未更新指标，因此 SMA/ATR/死叉
-    在装载阶段用 strategies.common.indicators 的 pandas 版本算好（与 backtrader 同口径）。
+    backtrader 在 cheat_on_open 的 next_open 中尚未更新指标，因此 SMA10/SMA30/SMA90、
+    ATR、死叉在装载阶段用 strategies.common.indicators 的 pandas 版本算好（与 backtrader 同口径）。
     start/end 缺省时分别取 BACKTEST_START / BACKTEST_END。
     """
     snap = build_minute_snapshots(read_minute_quotes(csv_path), signal_time, exec_delay_minutes)
@@ -196,6 +198,7 @@ def load_minute_snapshots(
     )
     snap["sma_fast"] = sma_fast
     snap["sma_slow"] = sma_slow
+    snap["sma_ref"] = sma(snap["signal_close"], ref_period)
     snap["atr"] = atr
     snap["cross_down"] = cross_down.astype(float)
 
